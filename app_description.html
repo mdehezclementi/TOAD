@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brief description of the application &#8212; DkgEncryption 0.0.1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Client" href="doc_client.html" />
+    <link rel="prev" title="Welcome to DkgEncryption’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="brief-description-of-the-application">
+<h1>Brief description of the application<a class="headerlink" href="#brief-description-of-the-application" title="Permalink to this headline">¶</a></h1>
+<p>The application allow a group of users to generate a couple of
+private and public key pair. These key are distributed over
+the member of the group and can be retrieve with the collaboration
+at least <span class="math notranslate nohighlight">\(t+1\)</span> members, where <span class="math notranslate nohighlight">\(t\)</span>  is a fixed threshold between 1
+and the number of members in the group.</p>
+<p>Thanks to these keys, any user can encrypt a file using the public of the group.
+Then the members of the group must collaborate to decrypt the file.
+At least <span class="math notranslate nohighlight">\(t+1\)</span> members are required to decrypt the file. Once this number
+is reached, any user can open the file wich was encrypted.</p>
+<p>These functionnalities are accomplished with two contracts deployed in the
+ethereum blockchain. The first one is called ETHDKG.sol and allows the generation of
+the key pair. The second one is called CipherETHDKG.sol and manages
+encryption and decryption. Finally respectively two clients manage the interactions
+with these contracts.</p>
+</div>
+<div class="section" id="generation-of-key-pair-for-a-group-of-users">
+<h1>Generation of key pair for a group of users<a class="headerlink" href="#generation-of-key-pair-for-a-group-of-users" title="Permalink to this headline">¶</a></h1>
+<p>The generation of the private and public key of the group is done using
+the ETHDKG protocol described here <a class="reference external" href="https://github.com/PhilippSchindler/ethdkg">ETHDKG</a>. Once this protocol is finished,
+every member of the group have a part of the key pair wich can be denoted
+<span class="math notranslate nohighlight">\(\text{gsk}_i / \text{gpk}_i\)</span>, and the keys of the group have the following
+properties:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\text{msk} &amp;= \sum_{P_i \in R} \text{gsk}_i \prod_{k \ne i} \frac {k}{k-i}\\
+\text{gpk} &amp;= \prod_{P_i \in R} \text{gpk}_i ^ {\sum_{k \ne i} \frac {k}{k-i}}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(R\)</span> is a set of <span class="math notranslate nohighlight">\(t+1\)</span> honest group member.</p>
+</div>
+<div class="section" id="protocol-of-encryption-decryption">
+<h1>Protocol of encryption/decryption<a class="headerlink" href="#protocol-of-encryption-decryption" title="Permalink to this headline">¶</a></h1>
+<p>Let denote <span class="math notranslate nohighlight">\(m\)</span> the file to encrypt, <span class="math notranslate nohighlight">\(G\)</span> the same group as in ETHDKG paper
+and <span class="math notranslate nohighlight">\(h\)</span> a generator of this group.</p>
+<div class="section" id="encryption">
+<h2>Encryption<a class="headerlink" href="#encryption" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt>The protocol for encryption works as follow:</dt><dd><ul class="simple">
+<li><p>choose a random integer <span class="math notranslate nohighlight">\(r_0\)</span></p></li>
+<li><p>calculate <span class="math notranslate nohighlight">\(k_\text{point} = h^{r_0}\)</span></p></li>
+<li><p>derive the symmetric key <span class="math notranslate nohighlight">\(k = \text{HKDF}(k_\text{point}, \text{key length}=32\text{ bytes})\)</span></p></li>
+<li><p>cipher the message with AES: <span class="math notranslate nohighlight">\(\text{ciphertext, nonce} = \text{AES}(k,m)\)</span></p></li>
+<li><p>save the ciphertext in a public server</p></li>
+<li><p>choose another random integer <span class="math notranslate nohighlight">\(r_1\)</span></p></li>
+<li><p>calculate <span class="math notranslate nohighlight">\(c_1 = h^{r_1}\)</span> and <span class="math notranslate nohighlight">\(c_2 = k_\text{point} \times \text{gpk}^{r_1}\)</span></p></li>
+<li><p>save <span class="math notranslate nohighlight">\(c_1\)</span> and <span class="math notranslate nohighlight">\(c_2\)</span> in the blockchain calling send_msg function of CipherETHDKG contract</p></li>
+</ul>
+</dd>
+</dl>
+<p>The method to encrypt <span class="math notranslate nohighlight">\(k_\text{point}\)</span> is known as ElGamal cryptosystem.</p>
+</div>
+<div class="section" id="decryption">
+<h2>Decryption<a class="headerlink" href="#decryption" title="Permalink to this headline">¶</a></h2>
+<dl>
+<dt>The protocol for decryption works as follow:</dt><dd><ul>
+<li><p>decryption of <span class="math notranslate nohighlight">\(k_\text{point}\)</span></p>
+<blockquote>
+<div><ul class="simple">
+<li><p>At least <span class="math notranslate nohighlight">\(t+1\)</span> members of the group send <span class="math notranslate nohighlight">\(c_1^{\text{gsk}_i}\)</span>
+along with a valid proof calling the share function of CipherETHDKG.sol</p></li>
+<li><p>any user can now select <span class="math notranslate nohighlight">\(t+1\)</span> shares and retrieves <span class="math notranslate nohighlight">\(k_\text{point}\)</span>
+calculating <span class="math notranslate nohighlight">\(\frac{c_2}{\prod_{P_i \in R} (c_1^{gsk_i})^{\prod_{k \ne i} \frac{k}{k-i} } }\)</span>.
+One can proofs that this expression is equal to <span class="math notranslate nohighlight">\(k_\text{point}\)</span>.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>decription of the ciphertext</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>calculate <span class="math notranslate nohighlight">\(\text{HKDF}(k_\text{point}, \text{key length}=32\text{ bytes}) = k\)</span></p></li>
+<li><p>get the ciphertext saved on the public server and decrypt it with AES</p></li>
+</ul>
+</div></blockquote>
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="description-of-cipher-ethdg-contract">
+<h1>Description of Cipher ETHDG contract<a class="headerlink" href="#description-of-cipher-ethdg-contract" title="Permalink to this headline">¶</a></h1>
+<p>This contract is composed of functions wich are mainly used
+to broadcast informations to other users. These functions are described below:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>register: save in the bockchain <span class="math notranslate nohighlight">\(\text{gpk}_i\)</span> along with
+its proof described in  ethdkg paper.
+This is necessary to verify the correctness of share then.</p></li>
+<li><p>send_msg: save in the blockchain the encrypted symmetric key wich was used for the
+symmetric encryption of the file.</p></li>
+<li><p>share: save a part of the decrypted symmetric key in the blockchain along with
+a zero knowledge proof of correctness.</p></li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="what-does-a-client-outside-of-the-group-do">
+<h1>What does a client outside of the group do<a class="headerlink" href="#what-does-a-client-outside-of-the-group-do" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="what-does-a-client-inside-of-the-group-do">
+<h1>What does a client inside of the group do<a class="headerlink" href="#what-does-a-client-inside-of-the-group-do" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="basic-example-of-utilisation">
+<h1>Basic example of utilisation<a class="headerlink" href="#basic-example-of-utilisation" title="Permalink to this headline">¶</a></h1>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">DkgEncryption</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Brief description of the application</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#generation-of-key-pair-for-a-group-of-users">Generation of key pair for a group of users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#protocol-of-encryption-decryption">Protocol of encryption/decryption</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#encryption">Encryption</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#decryption">Decryption</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#description-of-cipher-ethdg-contract">Description of Cipher ETHDG contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#what-does-a-client-outside-of-the-group-do">What does a client outside of the group do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#what-does-a-client-inside-of-the-group-do">What does a client inside of the group do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#basic-example-of-utilisation">Basic example of utilisation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="doc_client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="doc_Crypto_utils.html">Cryptographic method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="doc_webapp.html">Web Application</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to DkgEncryption’s documentation!</a></li>
+      <li>Next: <a href="doc_client.html" title="next chapter">Client</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Alexis Vandewalle.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/app_description.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
